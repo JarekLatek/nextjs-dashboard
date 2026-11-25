@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import postgres from 'postgres';
 import { invoices, customers, revenue, users } from '../lib/placeholder-data';
 
-const sql = postgres(process.env.POSTGRES_URL!, { ssl: 'require' });
+const sql = postgres(process.env.POSTGRES_URL_NON_POOLING!, { ssl: 'require' });
 
 async function seedUsers() {
   await sql`CREATE EXTENSION IF NOT EXISTS "uuid-ossp"`;
@@ -14,6 +14,10 @@ async function seedUsers() {
       password TEXT NOT NULL
     );
   `;
+  // Supabase exposes tables in `public` via its REST API (anon key).
+  // RLS without policies blocks that API; the app connects as the table
+  // owner via POSTGRES_URL, which bypasses RLS, so it keeps working.
+  await sql`ALTER TABLE users ENABLE ROW LEVEL SECURITY`;
 
   const insertedUsers = await Promise.all(
     users.map(async (user) => {
@@ -41,6 +45,7 @@ async function seedInvoices() {
       date DATE NOT NULL
     );
   `;
+  await sql`ALTER TABLE invoices ENABLE ROW LEVEL SECURITY`;
 
   const insertedInvoices = await Promise.all(
     invoices.map(
@@ -66,6 +71,7 @@ async function seedCustomers() {
       image_url VARCHAR(255) NOT NULL
     );
   `;
+  await sql`ALTER TABLE customers ENABLE ROW LEVEL SECURITY`;
 
   const insertedCustomers = await Promise.all(
     customers.map(
@@ -87,6 +93,7 @@ async function seedRevenue() {
       revenue INT NOT NULL
     );
   `;
+  await sql`ALTER TABLE revenue ENABLE ROW LEVEL SECURITY`;
 
   const insertedRevenue = await Promise.all(
     revenue.map(
